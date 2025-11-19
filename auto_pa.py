@@ -39,7 +39,7 @@ def get_layout() -> dict[str, str | list]:
             check=True,
         )
         output = result.stdout
-        print(f"设备返回: {output}", file=sys.stderr)
+        # print(f"设备返回: {output}", file=sys.stderr)
     except subprocess.CalledProcessError as e:
         print(f"❌ 执行 dumpLayout 命令失败: {e}", file=sys.stderr)
         sys.exit(1)
@@ -54,7 +54,7 @@ def get_layout() -> dict[str, str | list]:
         sys.exit(1)
 
     remote_path = match.group(1).strip()
-    print(f"已定位文件路径: {remote_path}", file=sys.stderr)
+    # print(f"已定位文件路径: {remote_path}", file=sys.stderr)
 
     # 3. 拉取文件并保存为 layout.json
     local_path = Path("./layout.json")
@@ -72,7 +72,7 @@ def get_layout() -> dict[str, str | list]:
         print("❌ 拉取失败，文件未保存。", file=sys.stderr)
         sys.exit(1)
 
-    print(f"🎉 成功！文件已保存在当前目录: {local_path}", file=sys.stderr)
+    # print(f"🎉 成功！文件已保存在当前目录: {local_path}", file=sys.stderr)
 
     # 4. (可选) 删除设备上的临时文件
     try:
@@ -139,9 +139,9 @@ def analyze_data(data) -> list[dict]:
     main_abality_child_5: dict = main_abality_child_4["children"][0]
     app_list_1: dict = main_abality_child_5["children"][1]
     new_app = "新鲜应用"
-    print(
-        f"MainAbility 子组件有: {main_abality_child_5['children'][0]['attributes']['text']}"
-    )
+    # print(
+    #     f"MainAbility 子组件有: {main_abality_child_5['children'][0]['attributes']['text']}"
+    # )
     if main_abality_child_5["children"][0]["attributes"]["text"] == new_app:
         app_list_2: dict = app_list_1["children"][0]
         app_list_3: dict = app_list_2["children"][0]
@@ -160,7 +160,7 @@ def analyze_data(data) -> list[dict]:
         app_list: list[dict] = app_list_6["children"]
 
     # print(f"MainAbility 的子组件有: {app_list})
-    print(f"len childen: {len(app_list)}")
+    # print(f"len childen: {len(app_list)}")
 
     # 第一步：收集所有应用的基本信息
     app_datas: list[dict] = []
@@ -193,7 +193,7 @@ def analyze_data(data) -> list[dict]:
             )
 
     # 第二步：使用多线程批量查询应用是否存在
-    print(f"开始多线程查询 {len(app_datas)} 个应用...")
+    # print(f"开始多线程查询 {len(app_datas)} 个应用...")
     with ThreadPoolExecutor(max_workers=10) as executor:
         # 提交所有查询任务
         future_to_index = {
