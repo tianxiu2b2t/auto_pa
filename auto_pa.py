@@ -138,18 +138,28 @@ def analyze_data(data) -> list[dict]:
     main_abality_child_4: dict = main_abality_child_3['children'][0]
     main_abality_child_5: dict = main_abality_child_4['children'][0]
     app_list_1: dict = main_abality_child_5['children'][1]
-    app_list_2: dict = app_list_1['children'][0]
-    app_list_3: dict = app_list_2['children'][0]
-    app_list_4: dict = app_list_3['children'][0]
-    app_list_5: dict = app_list_4['children'][0]
-    app_list_6: dict = app_list_5['children'][0]
-    app_list_7: dict = app_list_6['children'][0]
-    app_list_8: dict = app_list_7['children'][0]
-    app_list: list[dict] = app_list_8['children']
+    new_app = "新鲜应用"
+    print(f"MainAbility 子组件有: {main_abality_child_5['children'][0]['attributes']['text']}")
+    if main_abality_child_5['children'][0]['attributes']['text'] == new_app:
+        app_list_2: dict = app_list_1['children'][0]
+        app_list_3: dict = app_list_2['children'][0]
+        app_list_4: dict = app_list_3['children'][0]
+        app_list_5: dict = app_list_4['children'][0]
+        app_list_6: dict = app_list_5['children'][0]
+        app_list_7: dict = app_list_6['children'][0]
+        app_list_8: dict = app_list_7['children'][0]
+        app_list: list[dict] = app_list_8['children']
+    else:
+        app_list_2: dict = app_list_1['children'][0]
+        app_list_3: dict = app_list_2['children'][0]
+        app_list_4: dict = app_list_3['children'][0]
+        app_list_5: dict = app_list_4['children'][0]
+        app_list_6: dict = app_list_5['children'][0]
+        app_list: list[dict] = app_list_6['children']
 
-    # print(f"MainAbility 的子组件有: {app_list}")
+    # print(f"MainAbility 的子组件有: {app_list})
     print(f"len childen: {len(app_list)}")
-    
+
     # 第一步：收集所有应用的基本信息
     app_datas: list[dict] = []
     for app in app_list:
@@ -162,7 +172,7 @@ def analyze_data(data) -> list[dict]:
             continue
         sub5 = sub4['children'][2]
         sub6 = sub5['children'][0]
-        app_name = sub6['attributes']['originalText']
+        app_name = sub6['attributes']['text']
         app_box: str = sub6['attributes']['bounds']
         # 解析 bounds 字符串格式: [x1,y1][x2,y2]
         coords = app_box.replace('[', '').replace(']', ',').split(',')
@@ -177,16 +187,16 @@ def analyze_data(data) -> list[dict]:
                 'center': (center_x, center_y),
                 'exists': None  # 稍后批量查询
             })
-    
+
     # 第二步：使用多线程批量查询应用是否存在
     print(f"开始多线程查询 {len(app_datas)} 个应用...")
     with ThreadPoolExecutor(max_workers=10) as executor:
         # 提交所有查询任务
         future_to_index = {
-            executor.submit(search, app_data['name']): idx 
+            executor.submit(search, app_data['name']): idx
             for idx, app_data in enumerate(app_datas)
         }
-        
+
         # 收集查询结果
         for future in as_completed(future_to_index):
             idx = future_to_index[future]
@@ -199,7 +209,7 @@ def analyze_data(data) -> list[dict]:
                 coords = coords_str.replace('[', '').replace(']', ',').split(',')
                 coords = [int(coord) for coord in coords if coord]
                 x1, y1, x2, y2 = coords
-                print(f"app name: {app_name} - 坐标: ({x1}, {y1}) 到 ({x2}, {y2}), 中心点: ({center_x}, {center_y}) - 存在: {found}")
+                # print(f"app name: {app_name} - 坐标: ({x1}, {y1}) 到 ({x2}, {y2}), 中心点: ({center_x}, {center_y}) - 存在: {found}")
             except Exception as e:
                 print(f"查询应用 {app_datas[idx]['name']} 时出错: {e}")
                 app_datas[idx]['exists'] = None
@@ -229,8 +239,8 @@ def share_app(app_datas: list[dict]) -> None:
             print(f"正在分享应用: {app['name']} at ({x}, {y})")
             share_at(x, y)
             time.sleep(0.5)
-        else:
-            print(f"跳过已有的应用: {app['name']}")
+        # else:
+        #     print(f"跳过已有的应用: {app['name']}")
 
 if __name__ == "__main__":
     while True:
