@@ -4,6 +4,7 @@ import json
 import subprocess
 import re
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 
@@ -148,6 +149,8 @@ def analyze_data(data) -> list[dict]:
 
     # print(f"MainAbility 的子组件有: {app_list}")
     print(f"len childen: {len(app_list)}")
+    
+    # 第一步：收集所有应用的基本信息
     app_datas: list[dict] = []
     for app in app_list:
         sub1 = app['children'][0]
@@ -168,16 +171,38 @@ def analyze_data(data) -> list[dict]:
             x1, y1, x2, y2 = coords
             center_x = (x1 + x2) // 2
             center_y = (y1 + y2) // 2
-            found = search(app_name)
-            print(f"app name: {app_name} - 坐标: ({x1}, {y1}) 到 ({x2}, {y2}), 中心点: ({center_x}, {center_y}) - 存在: {found}")
             app_datas.append({
                 'name': app_name,
                 'bounds': app_box,
                 'center': (center_x, center_y),
-                'exists': found
+                'exists': None  # 稍后批量查询
             })
-        # else:
-            # print(f"app name: {app_name} - 无效的坐标格式: {app_box}")
+    
+    # 第二步：使用多线程批量查询应用是否存在
+    print(f"开始多线程查询 {len(app_datas)} 个应用...")
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        # 提交所有查询任务
+        future_to_index = {
+            executor.submit(search, app_data['name']): idx 
+            for idx, app_data in enumerate(app_datas)
+        }
+        
+        # 收集查询结果
+        for future in as_completed(future_to_index):
+            idx = future_to_index[future]
+            try:
+                found = future.result()
+                app_datas[idx]['exists'] = found
+                app_name = app_datas[idx]['name']
+                center_x, center_y = app_datas[idx]['center']
+                coords_str = app_datas[idx]['bounds']
+                coords = coords_str.replace('[', '').replace(']', ',').split(',')
+                coords = [int(coord) for coord in coords if coord]
+                x1, y1, x2, y2 = coords
+                print(f"app name: {app_name} - 坐标: ({x1}, {y1}) 到 ({x2}, {y2}), 中心点: ({center_x}, {center_y}) - 存在: {found}")
+            except Exception as e:
+                print(f"查询应用 {app_datas[idx]['name']} 时出错: {e}")
+                app_datas[idx]['exists'] = None
 
     # print(f"总共找到 {len(app_datas)} 个应用")
     return app_datas
@@ -185,23 +210,32 @@ def analyze_data(data) -> list[dict]:
 
 def share_at(x: int, y: int) -> None:
     target_pos = f"{x} {y}"
-    base_cmd = f"""hdc shell uinput -T `
-    -d {target_pos} -i 60 -u {target_pos} -i 900 `
-    -d 1150 200 -i 60 -u 1150 200 -i 600 `
-    -d 400 2200 -i 60 -u 400 2200 -i 800 `
-    -d 150 650 -i 60 -u 150 650 -i 400 `
-    -d 800 1700 -i 60 -u 800 1700 -i 300 `
-    -d 400 2800 -i 60 -u 400 2800 -i 300 `
-    -d 400 2800 -i 60 -u 400 2800"""
-    wati_time = 3720 # ms
+    base_cmd = f"""hdc shell uinput -T -d {target_pos} -i 60 -u {target_pos} -i 900 -d 1150 200 -i 60 -u 1150 200 -i 600 -d 400 2200 -i 60 -u 400 2200 -i 800 -d 150 650 -i 60 -u 150 650 -i 400 -d 800 1700 -i 60 -u 800 1700 -i 300 -d 400 2800 -i 60 -u 400 2800 -i 300 -d 400 2800 -i 60 -u 400 2800"""
+    wati_time = 3720 + 500 # ms
     subprocess.run(base_cmd, shell=True)
+    # print(base_cmd)
+    time.sleep(wati_time / 1000)
 
 
-def 下滑() -> None:
-    cmd = "hdc shell uinput -M -m 500 500 -s 2355"
+def 下滑_11() -> None:
+    cmd = "hdc shell uinput -M -m 500 1000 -s 2355"
     subprocess.run(cmd, shell=True)
     time.sleep(1)
 
+def share_app(app_datas: list[dict]) -> None:
+    for app in app_datas:
+        if not app['exists']:
+            x, y = app['center']
+            print(f"正在分享应用: {app['name']} at ({x}, {y})")
+            share_at(x, y)
+            time.sleep(0.5)
+        else:
+            print(f"跳过已有的应用: {app['name']}")
+
 if __name__ == "__main__":
-    data = get_layout_data()
-    app_datas = analyze_data(data)
+    while True:
+        data = get_layout()
+        app_datas = analyze_data(data)
+        share_app(app_datas)
+        print("所有应用分享完成！")
+        下滑_11()
