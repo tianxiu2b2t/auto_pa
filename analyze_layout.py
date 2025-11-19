@@ -61,6 +61,9 @@ if __name__ == "__main__":
         sub2 = sub1['children'][0]
         sub3 = sub2['children'][0]
         sub4 = sub3['children'][0]
-        # sub5 = sub4['children'][0]
-        print(f"sub {sub4}\n sub len: {len(sub4['children'])}")
+        sub5 = sub4['children'][2]
+        sub6 = sub5['children'][0]
+        app_name = sub6['attributes']['originalText']
+        # print(f"sub {json.dumps(sub6, indent=2, ensure_ascii=False)}\n sub len: {len(sub6['children'])}")
         # print(f"len: {len(app['children'])}, attributes: {app['attributes']}")
+        print(f"app name: {app_name}")
