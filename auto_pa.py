@@ -30,7 +30,7 @@ def get_layout() -> dict[str, str | list]:
     执行 hdc shell uitest dumpLayout 命令，获取 UI 结构并保存到 layout.json
     """
     # 1. 执行 dump 命令并获取输出
-    print("正在生成 UI 结构...", file=sys.stderr)
+    print("正在生成 UI 结构...", end="", flush=True)
     try:
         result = subprocess.run(
             ["hdc", "shell", "uitest", "dumpLayout"],
@@ -39,7 +39,8 @@ def get_layout() -> dict[str, str | list]:
             check=True,
         )
         output = result.stdout
-        # print(f"设备返回: {output}", file=sys.stderr)
+        print(f"|ui dump done", end = "", flush=True)
+        # print(f"设备返回: {output}", end = "", flush=True)
     except subprocess.CalledProcessError as e:
         print(f"❌ 执行 dumpLayout 命令失败: {e}", file=sys.stderr)
         sys.exit(1)
@@ -72,7 +73,7 @@ def get_layout() -> dict[str, str | list]:
         print("❌ 拉取失败，文件未保存。", file=sys.stderr)
         sys.exit(1)
 
-    # print(f"🎉 成功！文件已保存在当前目录: {local_path}", file=sys.stderr)
+    print(f"|layout 文件已保存", flush=True, end="")
 
     # 4. (可选) 删除设备上的临时文件
     try:
@@ -193,7 +194,7 @@ def analyze_data(data) -> list[dict]:
             )
 
     # 第二步：使用多线程批量查询应用是否存在
-    # print(f"开始多线程查询 {len(app_datas)} 个应用...")
+    print(f"|开始查询 {len(app_datas)} 个应用...", end="", flush=True)
     with ThreadPoolExecutor(max_workers=10) as executor:
         # 提交所有查询任务
         future_to_index = {
@@ -218,14 +219,14 @@ def analyze_data(data) -> list[dict]:
                 print(f"查询应用 {app_datas[idx]['name']} 时出错: {e}")
                 app_datas[idx]["exists"] = None
 
-    # print(f"总共找到 {len(app_datas)} 个应用")
+    print(f"总共找到 {len(app_datas)} 个应用")
     return app_datas
 
 
 def share_at(x: int, y: int) -> None:
     target_pos = f"{x} {y}"
-    base_cmd = f"""hdc shell uinput -T -d {target_pos} -i 60 -u {target_pos} -i 900 -d 1150 200 -i 60 -u 1150 200 -i 600 -d 400 2200 -i 60 -u 400 2200 -i 800 -d 150 650 -i 60 -u 150 650 -i 400 -d 800 1700 -i 60 -u 800 1700 -i 300 -d 400 2800 -i 60 -u 400 2800 -i 300 -d 400 2800 -i 60 -u 400 2800"""
-    wati_time = 3720 + 500  # ms
+    base_cmd = f"""hdc shell uinput -T -d {target_pos} -i 60 -u {target_pos} -i 900 -d 1150 200 -i 60 -u 1150 200 -i 600 -d 400 2200 -i 60 -u 400 2200 -i 900 -d 150 650 -i 60 -u 150 650 -i 400 -d 800 1700 -i 60 -u 800 1700 -i 300 -d 400 2800 -i 60 -u 400 2800 -i 300 -d 400 2800 -i 60 -u 400 2800"""
+    wati_time = 3820 + 500  # ms
     subprocess.run(base_cmd, shell=True)
     # print(base_cmd)
     time.sleep(wati_time / 1000)
