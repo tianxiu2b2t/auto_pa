@@ -139,11 +139,11 @@ def analyze_data(data) -> list[dict]:
     main_abality_child_4: dict = main_abality_child_3["children"][0]
     main_abality_child_5: dict = main_abality_child_4["children"][0]
     app_list_1: dict = main_abality_child_5["children"][1]
-    new_app = "新鲜应用"
+    new_app = ["新鲜应用", "新鲜游戏"]
     # print(
     #     f"MainAbility 子组件有: {main_abality_child_5['children'][0]['attributes']['text']}"
     # )
-    if main_abality_child_5["children"][0]["attributes"]["text"] == new_app:
+    if main_abality_child_5["children"][0]["attributes"]["text"] in new_app:
         app_list_2: dict = app_list_1["children"][0]
         app_list_3: dict = app_list_2["children"][0]
         app_list_4: dict = app_list_3["children"][0]
