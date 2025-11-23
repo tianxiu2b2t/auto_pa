@@ -39,7 +39,7 @@ def get_layout() -> dict[str, str | list]:
             check=True,
         )
         output = result.stdout
-        print(f"|ui dump done", end = "", flush=True)
+        print("|ui dump done", end="", flush=True)
         # print(f"设备返回: {output}", end = "", flush=True)
     except subprocess.CalledProcessError as e:
         print(f"❌ 执行 dumpLayout 命令失败: {e}", file=sys.stderr)
@@ -219,7 +219,9 @@ def analyze_data(data) -> list[dict]:
                 print(f"查询应用 {app_datas[idx]['name']} 时出错: {e}")
                 app_datas[idx]["exists"] = None
 
-    print(f"总共找到 {len(app_datas)} 个应用 {len([app for app in app_datas if not app['exists']])} 个新应用")
+    print(
+        f"总共找到 {len(app_datas)} 个应用 {len([app for app in app_datas if not app['exists']])} 个新应用"
+    )
     return app_datas
 
 
