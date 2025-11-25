@@ -250,11 +250,24 @@ def share_app(app_datas: list[dict]) -> None:
         # else:
         #     print(f"跳过已有的应用: {app['name']}")
 
-
 if __name__ == "__main__":
+    previous_app_datas = None
     while True:
         data = get_layout()
         app_datas = analyze_data(data)
+
+        # 检查是否与上次数据一致
+        if previous_app_datas is not None:
+            # 比较应用名称列表是否一致
+            current_names = [app['name'] for app in app_datas]
+            previous_names = [app['name'] for app in previous_app_datas]
+            if current_names == previous_names:
+                print("检测到应用列表未变化，退出程序")
+                break
+
         share_app(app_datas)
         print("所有应用分享完成！")
         下滑_11()
+
+        # 保存当前数据用于下次比较
+        previous_app_datas = app_datas
