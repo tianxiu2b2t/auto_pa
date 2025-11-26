@@ -1,12 +1,68 @@
 import json
+import os
 import re
+import signal
 import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from pathlib import Path
 
 import requests
+
+
+# 启用 Windows 终端 ANSI 转义序列支持
+if sys.platform == "win32":
+    os.system("")
+
+
+class TUIDisplay:
+    """TUI 显示类，用于动态更新输出"""
+
+    def __init__(self):
+        self.current_line = ""
+
+    def clear_line(self):
+        """清除当前行"""
+        print("\r" + " " * 100 + "\r", end="", flush=True)
+
+    def update(self, text: str):
+        """更新当前行内容"""
+        self.clear_line()
+        print(text, end="", flush=True)
+        self.current_line = text
+
+    def finish(self, text: str = ""):
+        """完成当前行，换行"""
+        if text:
+            self.clear_line()
+            print(text, flush=True)
+        else:
+            print(flush=True)
+        self.current_line = ""
+
+    def print_status(self, round_num: int, stage: str, detail: str = ""):
+        """打印实时状态"""
+        status = f"🔄 第{round_num}轮 | {stage}"
+        if detail:
+            status += f" | {detail}"
+        self.update(status)
+
+
+tui = TUIDisplay()
+
+
+# 统计信息全局变量
+class Statistics:
+    def __init__(self):
+        self.start_time = datetime.now()
+        self.total_rounds = 0
+        self.total_apps_processed = 0
+        self.total_apps_shared = 0
+        self.exit_reason = "未知"
+
+stats = Statistics()
 
 
 def search(name: str) -> bool | None:
@@ -29,8 +85,8 @@ def get_layout() -> dict[str, str | list]:
     """
     执行 hdc shell uitest dumpLayout 命令，获取 UI 结构并保存到 layout.json
     """
-    # 1. 执行 dump 命令并获取输出
-    print("正在生成 UI 结构...", end="", flush=True)
+    tui.update("📱 正在生成 UI 结构...")
+
     try:
         result = subprocess.run(
             ["hdc", "shell", "uitest", "dumpLayout"],
@@ -39,23 +95,22 @@ def get_layout() -> dict[str, str | list]:
             check=True,
         )
         output = result.stdout
-        print("|ui dump done", end="", flush=True)
-        # print(f"设备返回: {output}", end = "", flush=True)
     except subprocess.CalledProcessError as e:
-        print(f"❌ 执行 dumpLayout 命令失败: {e}", file=sys.stderr)
+        tui.finish(f"❌ 执行 dumpLayout 命令失败: {e}")
         sys.exit(1)
     except FileNotFoundError:
-        print("❌ 未找到 hdc 命令，请确保已安装并配置环境变量", file=sys.stderr)
+        tui.finish("❌ 未找到 hdc 命令，请确保已安装并配置环境变量")
         sys.exit(1)
 
     # 2. 使用正则从输出中提取文件路径
     match = re.search(r"saved to:(/data/local/tmp/.*\.json)", output)
     if not match:
-        print("❌ 未能从输出中解析出文件路径。可能是 dump 失败了。", file=sys.stderr)
+        tui.finish("❌ 未能从输出中解析出文件路径。可能是 dump 失败了。")
         sys.exit(1)
 
     remote_path = match.group(1).strip()
-    # print(f"已定位文件路径: {remote_path}", file=sys.stderr)
+
+    tui.update("📥 正在拉取 layout 文件...")
 
     # 3. 拉取文件并保存为 layout.json
     local_path = Path("./layout.json")
@@ -66,14 +121,12 @@ def get_layout() -> dict[str, str | list]:
             capture_output=True,
         )
     except subprocess.CalledProcessError as e:
-        print(f"❌ 拉取文件失败: {e}", file=sys.stderr)
+        tui.finish(f"❌ 拉取文件失败: {e}")
         sys.exit(1)
 
     if not local_path.exists():
-        print("❌ 拉取失败，文件未保存。", file=sys.stderr)
+        tui.finish("❌ 拉取失败，文件未保存。")
         sys.exit(1)
-
-    print(f"|layout 文件已保存", flush=True, end="")
 
     # 4. (可选) 删除设备上的临时文件
     try:
@@ -88,11 +141,11 @@ def get_layout() -> dict[str, str | list]:
         data = json.loads(local_path.read_text(encoding="utf-8"))
         return data
     except FileNotFoundError:
-        print(f"文件未找到: {local_path}", file=sys.stderr)
+        tui.finish(f"❌ 文件未找到: {local_path}")
     except json.JSONDecodeError:
-        print(f"文件不是有效的JSON格式: {local_path}", file=sys.stderr)
+        tui.finish(f"❌ 文件不是有效的JSON格式: {local_path}")
     except Exception as e:
-        print(f"读取文件时出错: {str(e)}", file=sys.stderr)
+        tui.finish(f"❌ 读取文件时出错: {str(e)}")
     sys.exit(1)
 
 
@@ -128,10 +181,12 @@ def get_abailty(data: list[dict], name: str | None = None) -> dict | None:
 
 
 def analyze_data(data) -> list[dict]:
+    tui.update("🔍 正在解析应用列表...")
+
     main_child: list[dict] = data["children"]
     main_abality = get_abailty(main_child, "MainAbility")
     if main_abality is None:
-        print("未找到 MainAbility")
+        tui.finish("❌ 未找到 MainAbility")
         sys.exit(1)
     main_abality_child_1: dict = main_abality["children"][0]
     main_abality_child_2: dict = main_abality_child_1["children"][0]
@@ -140,9 +195,7 @@ def analyze_data(data) -> list[dict]:
     main_abality_child_5: dict = main_abality_child_4["children"][0]
     app_list_1: dict = main_abality_child_5["children"][1]
     new_app = ["新鲜应用", "新鲜游戏"]
-    # print(
-    #     f"MainAbility 子组件有: {main_abality_child_5['children'][0]['attributes']['text']}"
-    # )
+
     if main_abality_child_5["children"][0]["attributes"]["text"] in new_app:
         app_list_2: dict = app_list_1["children"][0]
         app_list_3: dict = app_list_2["children"][0]
@@ -159,9 +212,6 @@ def analyze_data(data) -> list[dict]:
         app_list_5: dict = app_list_4["children"][0]
         app_list_6: dict = app_list_5["children"][0]
         app_list: list[dict] = app_list_6["children"]
-
-    # print(f"MainAbility 的子组件有: {app_list})
-    # print(f"len childen: {len(app_list)}")
 
     # 第一步：收集所有应用的基本信息
     app_datas: list[dict] = []
@@ -194,7 +244,10 @@ def analyze_data(data) -> list[dict]:
             )
 
     # 第二步：使用多线程批量查询应用是否存在
-    print(f"|开始查询 {len(app_datas)} 个应用...", end="", flush=True)
+    total_apps = len(app_datas)
+    tui.update(f"🔎 正在查询应用 (0/{total_apps})...")
+
+    completed_count = 0
     with ThreadPoolExecutor(max_workers=10) as executor:
         # 提交所有查询任务
         future_to_index = {
@@ -208,20 +261,16 @@ def analyze_data(data) -> list[dict]:
             try:
                 found = future.result()
                 app_datas[idx]["exists"] = found
-                app_name = app_datas[idx]["name"]
-                center_x, center_y = app_datas[idx]["center"]
-                coords_str = app_datas[idx]["bounds"]
-                coords = coords_str.replace("[", "").replace("]", ",").split(",")
-                coords = [int(coord) for coord in coords if coord]
-                x1, y1, x2, y2 = coords
-                # print(f"app name: {app_name} - 坐标: ({x1}, {y1}) 到 ({x2}, {y2}), 中心点: ({center_x}, {center_y}) - 存在: {found}")
+                completed_count += 1
+                tui.update(f"🔎 正在查询应用 ({completed_count}/{total_apps})...")
             except Exception as e:
-                print(f"查询应用 {app_datas[idx]['name']} 时出错: {e}")
+                tui.finish(f"⚠️  查询应用 {app_datas[idx]['name']} 时出错: {e}")
                 app_datas[idx]["exists"] = None
+                completed_count += 1
 
-    print(
-        f"总共找到 {len(app_datas)} 个应用 {len([app for app in app_datas if not app['exists']])} 个新应用"
-    )
+    new_apps_count = len([app for app in app_datas if not app['exists']])
+    tui.update(f"✅ 找到 {total_apps} 个应用，其中 {new_apps_count} 个新应用")
+
     return app_datas
 
 
@@ -229,45 +278,100 @@ def share_at(x: int, y: int) -> None:
     target_pos = f"{x} {y}"
     base_cmd = f"""hdc shell uinput -T -d {target_pos} -i 60 -u {target_pos} -i 900 -d 1150 200 -i 60 -u 1150 200 -i 600 -d 400 2200 -i 60 -u 400 2200 -i 900 -d 150 650 -i 60 -u 150 650 -i 400 -d 800 1700 -i 60 -u 800 1700 -i 300 -d 400 2800 -i 60 -u 400 2800 -i 300 -d 400 2800 -i 60 -u 400 2800"""
     wati_time = 3820 + 500  # ms
-    subprocess.run(base_cmd, shell=True)
-    # print(base_cmd)
+    subprocess.run(base_cmd, shell=True, capture_output=True)
     time.sleep(wati_time / 1000)
 
 
 def 下滑_11() -> None:
+    tui.update("📜 正在下滑页面...")
     cmd = "hdc shell uinput -M -m 500 1000 -s 2355"
-    subprocess.run(cmd, shell=True)
+    subprocess.run(cmd, shell=True, capture_output=True)
     time.sleep(1)
 
 
 def share_app(app_datas: list[dict]) -> None:
-    for app in app_datas:
-        if not app["exists"]:
-            x, y = app["center"]
-            print(f"正在分享应用: {app['name']} at ({x}, {y})")
-            share_at(x, y)
-            time.sleep(0.5)
-        # else:
-        #     print(f"跳过已有的应用: {app['name']}")
+    new_apps = [app for app in app_datas if not app["exists"]]
+    total_new = len(new_apps)
+
+    if total_new == 0:
+        tui.update("ℹ️  没有需要分享的新应用")
+        return
+
+    for idx, app in enumerate(new_apps, 1):
+        x, y = app["center"]
+        tui.update(f"📤 正在分享 ({idx}/{total_new}): {app['name']}")
+        share_at(x, y)
+        time.sleep(0.5)
+
+    tui.update(f"✅ 本轮分享完成，共分享 {total_new} 个应用")
+
+
+def print_statistics():
+    """打印统计信息"""
+    end_time = datetime.now()
+    duration = end_time - stats.start_time
+    hours, remainder = divmod(duration.total_seconds(), 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    tui.finish()  # 确保换行
+    print("\n" + "="*60)
+    print("📊 运行统计信息")
+    print("="*60)
+    print(f"🔄 总运行轮次: {stats.total_rounds}")
+    print(f"📱 总处理应用数: {stats.total_apps_processed}")
+    print(f"🆕 总分享新应用数: {stats.total_apps_shared}")
+    print(f"⏱️  运行总时长: {int(hours)}小时 {int(minutes)}分钟 {int(seconds)}秒")
+    print(f"🚪 退出原因: {stats.exit_reason}")
+    print("="*60)
+
+
+def signal_handler(signum, frame):
+    """处理 Ctrl+C 信号"""
+    stats.exit_reason = "用户按下 Ctrl+C 强制退出"
+    print_statistics()
+    sys.exit(0)
+
 
 if __name__ == "__main__":
+    # 注册 Ctrl+C 信号处理器
+    signal.signal(signal.SIGINT, signal_handler)
+
+    print("🚀 程序启动...")
+    print("💡 按 Ctrl+C 可随时退出并查看统计信息\n")
+
     previous_app_datas = None
-    while True:
-        data = get_layout()
-        app_datas = analyze_data(data)
 
-        # 检查是否与上次数据一致
-        if previous_app_datas is not None:
-            # 比较应用名称列表是否一致
-            current_names = [app['name'] for app in app_datas]
-            previous_names = [app['name'] for app in previous_app_datas]
-            if current_names == previous_names:
-                print("检测到应用列表未变化，退出程序")
-                break
+    try:
+        while True:
+            stats.total_rounds += 1
+            tui.update(f"🔄 第 {stats.total_rounds} 轮处理")
 
-        share_app(app_datas)
-        print("所有应用分享完成！")
-        下滑_11()
+            data = get_layout()
+            app_datas = analyze_data(data)
 
-        # 保存当前数据用于下次比较
-        previous_app_datas = app_datas
+            # 更新统计信息
+            stats.total_apps_processed += len(app_datas)
+            new_apps_count = len([app for app in app_datas if not app['exists']])
+            stats.total_apps_shared += new_apps_count
+
+            # 检查是否与上次数据一致
+            if previous_app_datas is not None:
+                # 比较应用名称列表是否一致
+                current_names = [app['name'] for app in app_datas]
+                previous_names = [app['name'] for app in previous_app_datas]
+                if current_names == previous_names:
+                    tui.finish("ℹ️  检测到应用列表未变化，退出程序")
+                    stats.exit_reason = "应用列表未变化，正常退出"
+                    print_statistics()
+                    break
+
+            share_app(app_datas)
+            下滑_11()
+            tui.finish(f"✅ {stats.total_rounds}轮完成")
+
+            # 保存当前数据用于下次比较
+            previous_app_datas = app_datas
+    except Exception as e:
+        stats.exit_reason = f"程序异常退出: {str(e)}"
+        print_statistics()
+        raise
