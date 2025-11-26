@@ -306,6 +306,13 @@ def share_app(app_datas: list[dict]) -> None:
     tui.update(f"✅ 本轮分享完成，共分享 {total_new} 个应用")
 
 
+def play_beep(count: int = 3):
+    """播放提示音"""
+    for _ in range(count):
+        print("\a", end="", flush=True)
+        time.sleep(0.2)
+
+
 def print_statistics():
     """打印统计信息"""
     end_time = datetime.now()
@@ -329,6 +336,7 @@ def signal_handler(signum, frame):
     """处理 Ctrl+C 信号"""
     stats.exit_reason = "用户按下 Ctrl+C 强制退出"
     print_statistics()
+    play_beep()
     sys.exit(0)
 
 
@@ -363,6 +371,7 @@ if __name__ == "__main__":
                     tui.finish("ℹ️  检测到应用列表未变化，退出程序")
                     stats.exit_reason = "应用列表未变化，正常退出"
                     print_statistics()
+                    play_beep()
                     break
 
             share_app(app_datas)
@@ -374,4 +383,5 @@ if __name__ == "__main__":
     except Exception as e:
         stats.exit_reason = f"程序异常退出: {str(e)}"
         print_statistics()
+        play_beep()
         raise
