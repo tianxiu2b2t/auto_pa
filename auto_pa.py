@@ -294,16 +294,13 @@ def share_app(app_datas: list[dict]) -> None:
     total_new = len(new_apps)
 
     if total_new == 0:
-        tui.update("ℹ️  没有需要分享的新应用")
         return
 
     for idx, app in enumerate(new_apps, 1):
         x, y = app["center"]
-        tui.update(f"📤 正在分享 ({idx}/{total_new}): {app['name']}")
+        print(f"分享 {app['name']} 应用 ", end="", flush=True)
         share_at(x, y)
         time.sleep(0.5)
-
-    tui.update(f"✅ 本轮分享完成，共分享 {total_new} 个应用")
 
 
 def play_beep(count: int = 3):
