@@ -1,3 +1,5 @@
 ﻿*.log
 *.json
 try_get.py
+
+*__pycache__*
