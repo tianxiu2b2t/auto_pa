@@ -67,9 +67,9 @@ stats = Statistics()
 
 def search(name: str) -> bool | None:
     target_url = f"http://shenjack.top:10003/api/v0/apps/list/1?sort=download_count&desc=true&page_size=1&search_key=name&search_value={name}&search_exact=true"
-    response = requests.get(target_url)
-    if response.status_code == 200:
-        data = response.json()
+    回复 = requests.get(target_url)
+    if 回复.status_code == 200:
+        data = 回复.json()
         if not data["success"]:
             return False
         if "data" not in data:
@@ -80,6 +80,8 @@ def search(name: str) -> bool | None:
         return True
     return None
 
+run_name: None | str = None
+"""分类名"""
 
 def get_layout() -> dict[str, str | list]:
     """
@@ -195,8 +197,10 @@ def analyze_data(data) -> list[dict]:
     main_abality_child_5: dict = main_abality_child_4["children"][0]
     app_list_1: dict = main_abality_child_5["children"][1]
     new_app = ["新鲜应用", "新鲜游戏"]
-
-    if main_abality_child_5["children"][0]["attributes"]["text"] in new_app:
+    type_name = main_abality_child_5["children"][0]["attributes"]["text"]
+    global run_name
+    run_name = type_name
+    if type_name in new_app:
         app_list_2: dict = app_list_1["children"][0]
         app_list_3: dict = app_list_2["children"][0]
         app_list_4: dict = app_list_3["children"][0]
@@ -321,6 +325,7 @@ def print_statistics():
     print("\n" + "="*60)
     print("📊 运行统计信息")
     print("="*60)
+    print(f"分类名: {run_name}")
     print(f"🔄 总运行轮次: {stats.total_rounds}")
     print(f"📱 总处理应用数: {stats.total_apps_processed}")
     print(f"🆕 总分享新应用数: {stats.total_apps_shared}")
