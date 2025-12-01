@@ -220,6 +220,8 @@ def analyze_data(data) -> list[dict]:
     # 第一步：收集所有应用的基本信息
     app_datas: list[dict] = []
     for app in app_list:
+        if len(app["children"]) == 0:
+            continue
         sub1 = app["children"][0]
         sub2 = sub1["children"][0]
         sub3 = sub2["children"][0]
@@ -272,8 +274,9 @@ def analyze_data(data) -> list[dict]:
                 app_datas[idx]["exists"] = None
                 completed_count += 1
 
-    new_apps_count = len([app for app in app_datas if not app['exists']])
-    tui.update(f"✅ 找到 {total_apps} 个应用，其中 {new_apps_count} 个新应用")
+    new_apps = [app for app in app_datas if not app['exists']]
+    # print(app_datas, sep="\n")
+    tui.update(f"✅ 找到 {total_apps} 个应用，其中 {len(new_apps)} 个新应用")
 
     return app_datas
 
