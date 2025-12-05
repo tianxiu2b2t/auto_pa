@@ -3,3 +3,10 @@
 try_get.py
 
 *__pycache__*
+.python-version
+.lh
+
+
+# Added by cargo
+
+/target

@@ -73,7 +73,7 @@ def play_beep(count: int = 3):
 
 def search(name: str) -> bool | None:
     """查询应用是否存在"""
-    base_url = "http://shenjack.top:10003/api/v0/apps/list/1"
+    base_url = "https://hmos.txit.top/api/apps/list/1"
     params = {
         "sort": "download_count",
         "desc": "true",
